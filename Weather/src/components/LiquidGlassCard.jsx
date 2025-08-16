@@ -1,6 +1,6 @@
 // src/components/LiquidGlass.jsx
 import React from "react";
-import "./liquidGlass.css"; // We'll put the original styles here
+import "./LiquidGlass.css"; // We'll put the original styles here
 
 const LiquidGlass = ({ children }) => {
   return (
