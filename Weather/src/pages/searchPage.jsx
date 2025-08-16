@@ -13,6 +13,20 @@ import refresh from '../assets/refresh1.gif';
 export default function SearchPage() {
   const navigate = useNavigate();
   const [isSearching, setIsSearching] = useState(false);
+  const [city, setCity] = useState("");
+  const API_KEY = 'SLZBVNNM5L8MSKZURRGV4JK3Z';
+
+  async function fetchWeather(cityName) {
+    const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${encodeURIComponent(cityName)}?unitGroup=us&key=${API_KEY}&contentType=json`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Not found");
+      const data = await res.json();
+      return data;
+    } catch (e) {
+      return null;
+    }
+  }
 
   // Main fixes for video blinking and flash
   const [mediaLoaded, setMediaLoaded] = useState(false);
@@ -131,20 +145,69 @@ export default function SearchPage() {
             <LiquidGlassCard>
               <div className='flex flex-col lg:flex-row justify-center items-center gap-10 lg:gap-3'>
                 <span>
-                  <input type='text' placeholder='Enter city name...' className='p-3 rounded-md w-full lg:w-100 border-3 font-bold text-2xl' />
+                  <input
+                    type='text'
+                    placeholder='Enter city name...'
+                    className='p-3 rounded-md w-full lg:w-100 border-3 font-bold text-2xl'
+                    value={city}
+                    onChange={e => setCity(e.target.value)}
+                  />
                 </span>
                 <span className='flex items-center justify-center'>
-                  <img src={location} alt='location-icon' className='w-13 absolute right-3 lg:relative lg:ml-5 bg-amber-50 rounded-4xl cursor-pointer active:scale-115 transition-transform duration-300 ease-in-out' />
-                  <img src={refresh} alt='refresh-icon' className='w-13 absolute left-3 lg:relative lg:-ml-3 bg-amber-50 rounded-4xl cursor-pointer active:scale-115 transition-transform duration-300 ease-in-out' />
+                  <img
+                    src={location}
+                    alt='location-icon'
+                    className='w-13 absolute right-3 lg:relative lg:ml-5 bg-amber-50 rounded-4xl cursor-pointer active:scale-115 transition-transform duration-300 ease-in-out'
+                    onClick={async () => {
+                      if (!('geolocation' in navigator)) {
+                        alert('Geolocation is not supported by your browser.');
+                        return;
+                      }
+                      navigator.geolocation.getCurrentPosition(
+                        async (position) => {
+                          const { latitude, longitude } = position.coords;
+                          // Reverse geocode to get city using OpenStreetMap (Nominatim)
+                          try {
+                            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+                            const data = await response.json();
+                            if (data.address && (data.address.city || data.address.town || data.address.village)) {
+                              setCity(data.address.city || data.address.town || data.address.village);
+                            } else if (data.display_name) {
+                              setCity(data.display_name);
+                            } else {
+                              alert('Could not determine your city from location.');
+                            }
+                          } catch {
+                            alert('Failed to reverse geocode your location.');
+                          }
+                        },
+                        (error) => {
+                          if (error.code === error.PERMISSION_DENIED) {
+                            alert('Please turn on location services to use this feature.');
+                          } else {
+                            alert('Could not get your location: ' + error.message);
+                          }
+                        }
+                      );
+                    }}
+                  />
+                  <img
+                    src={refresh}
+                    alt='refresh-icon'
+                    className='w-13 absolute left-3 lg:relative lg:-ml-3 bg-amber-50 rounded-4xl cursor-pointer active:scale-115 transition-transform duration-300 ease-in-out'
+                    onClick={() => setCity("")}
+                  />
                 </span>
               </div>
               <GradientButton
                     className='mt-6 w-35 h-15 rounded-2xl text-white font-bold text-2xl cursor-pointer flex justify-center items-center active:scale-110 transition-transform duration-300 ease-in-out'
-                    onClick={() => {
+                    onClick={async () => {
+                      if (!city.trim()) return;
                       setIsSearching(true);
+                      const weatherData = await fetchWeather(city.trim());
                       setTimeout(() => {
-                        navigate('/result');
-                      }, 3000);
+                        navigate('/result', {state: {weatherData, city}});
+                      }, 2000); // spinner time
                     }}
                   >
                     <img src={search} alt='search-icon' className='w-7' />
