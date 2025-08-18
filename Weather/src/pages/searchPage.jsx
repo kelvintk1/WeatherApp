@@ -94,6 +94,46 @@ export default function SearchPage() {
     }, 2000);
   };
 
+  // Get weather for user's current location
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+    setIsSearching(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const coords = `${latitude},${longitude}`;
+        const cacheKey = `weatherapi_${coords}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          setTimeout(() => {
+            navigate('/result', { state: { weatherData: JSON.parse(cached), city: "Your Location" } });
+            setIsSearching(false);
+          }, 2000);
+          return;
+        }
+        const weatherData = await fetchWeather(coords);
+        setTimeout(() => {
+          setIsSearching(false);
+          if (weatherData) {
+            localStorage.setItem(cacheKey, JSON.stringify(weatherData));
+            navigate('/result', { state: { weatherData, city: "Your Location" } });
+          }
+        }, 2000);
+      },
+      (error) => {
+        setIsSearching(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          alert("Location access denied. Please turn on your device location and allow access.");
+        } else {
+          alert("Unable to retrieve your location.");
+        }
+      }
+    );
+  };
+
   // Main fixes for video blinking and flash
   const [mediaLoaded, setMediaLoaded] = useState(false);
   const fadeTimeout = useRef(null);
@@ -225,8 +265,20 @@ export default function SearchPage() {
                   />
                 </span>
                 <span className='flex items-center justify-center'>
-                  <img src={location} alt='location-icon' className='w-13 absolute right-3 lg:relative lg:ml-5 bg-amber-50 rounded-4xl cursor-pointer active:scale-115 transition-transform duration-300 ease-in-out' />
-                  <img src={refresh} alt='refresh-icon' className='w-13 absolute left-3 lg:relative lg:-ml-3 bg-amber-50 rounded-4xl cursor-pointer active:scale-115 transition-transform duration-300 ease-in-out' />
+                  <img
+                    src={location}
+                    alt='location-icon'
+                    title="Use my location"
+                    className='w-13 absolute right-3 lg:relative lg:ml-5 bg-amber-50 rounded-4xl cursor-pointer active:scale-115 transition-transform duration-300 ease-in-out'
+                    onClick={handleUseCurrentLocation}
+                  />
+                  <img
+                    src={refresh}
+                    alt='refresh-icon'
+                    title="Clear"
+                    className='w-13 absolute left-3 lg:relative lg:-ml-3 bg-amber-50 rounded-4xl cursor-pointer active:scale-115 transition-transform duration-300 ease-in-out'
+                    onClick={() => setCity("")}
+                  />
                 </span>
               </div>
               <GradientButton
